@@ -1,7 +1,8 @@
 import requests
 import click
 import json
-
+import warnings
+import logging
 
 # Copied from example of Check Point R80.10 Management API:
 # https://sc1.checkpoint.com/documents/latest/APIs/index.html#ws~v1.1%20
@@ -20,45 +21,75 @@ def api_call(ip_addr: str, port: int, command: str, json_payload: dict, sid=None
         request_headers = {'Content-Type': 'application/json'}
     else:
         request_headers = {'Content-Type': 'application/json', 'X-chkp-sid': sid}
-    r = requests.post(url, data=json.dumps(json_payload), headers=request_headers, verify=False)
+    with warnings.catch_warnings(): # Disable warnings about unverified HTTPS request
+        warnings.simplefilter("ignore")
+        r = requests.post(url, data=json.dumps(json_payload), headers=request_headers, verify=False)
     r.raise_for_status()
     return r.json()
 
 
-def login(connection_info: dict):
-    """
-    Creates a new session on management server. Every work on management server must begin with login command.
-    :param connection_info: Contains username, password, ip and port for connection
-    """
-    payload = {'user': connection_info["username"], 'password': connection_info["password"]}
-    response = api_call(connection_info["ip"], connection_info["port"], 'login', payload)
-    return response["sid"]
 
+def session_mgmt(connection_info: dict, action: str, sid=None):
+    if action == "login":
+        payload = {'user': connection_info["username"], 'password': connection_info["password"]}
+        response = api_call(connection_info["ip"], connection_info["port"], 'login', payload)
+        logging.info(f"Logged in as user {connection_info['username']}")
+        return response["sid"]
+    elif action == "publish":
+        if sid is None or sid == "":
+            raise TypeError("Sid not provided")
+        response = api_call(connection_info["ip"], connection_info["port"], 'publish', {}, sid)
+        logging.info("Publishing changes.")
+    elif action == "discard":
+        if sid is None or sid == "":
+            raise TypeError("Sid not provided")
+        response = api_call(connection_info["ip"], connection_info["port"], 'discard', {}, sid)
+        logging.info("Discarding changes.")
+    elif action == "logout":
+        if sid is None or sid == "":
+            raise TypeError("Sid not provided")
+        response = api_call(connection_info["ip"], connection_info["port"], 'logout', {}, sid)
+        logging.info(f"Logging out user {connection_info['username']}")
+    else:
+        raise TypeError("Action is not defined")
 
-def logout(connection_info: dict, sid: str):
-    """
-    Logs out of session, defined by SID. Does not check if changes were published, saves the changes
-    :param connection_info: Contains username, password, ip and port for connection
-    :param sid: Session ID
-    :return: Response of API command
-    """
-    if sid is None or sid == "":
-        raise TypeError("Sid not provided")
-    response = api_call(connection_info["ip"], connection_info["port"], 'logout', {}, sid)
-    return response
+def add_dhcp_relay_interface_objects(connection_info: dict, sid: str, host_file: str, group_file: str, vlan: str):
+    with open(host_file, mode='r', encoding='utf-8') as hf:
+        hosts = json.load(hf)
+    logging.info("Adding interfaces as host objects for DHCP Relay.")
+    for h in hosts[vlan].values():
+        response = api_call(connection_info["ip"], connection_info["port"], 'add-host', h, sid)
+    with open(group_file, mode='r', encoding='utf-8') as gf:
+        groups = json.load(gf)
+    logging.info("Creating groups with interfaces for DHCP Relay.")
+    response = api_call(connection_info["ip"], connection_info["port"], 'add-group', groups[vlan], sid)
+
 
 
 @click.command()
 @click.option("--user", required=True, help="Username on management server")
+@click.option("--log", default="warning", help="Sets the log level")
 @click.password_option()
 @click.argument("ip_address")
 @click.argument("port", default=443, required=False)
-def main(user, password, ip_address, port):
+def main(user, log, password, ip_address, port):
+    numeric_level = getattr(logging, log.upper())
+    if not isinstance(numeric_level, int):
+        raise ValueError(f"Invalid log level: {log}")
+    logging.basicConfig(level=numeric_level)
+
     management_info = {"username": user, "password": password, "ip": ip_address, "port": port}
-    sid = login(management_info)
-    click.echo(f"Session is {sid}")
-    click.echo("Logging out")
-    click.echo(logout(management_info, sid))
+    sid = session_mgmt(management_info, "login")
+
+    try:
+        add_dhcp_relay_interface_objects(management_info, sid, "data/hosts.json", "data/groups.json", "vlan70")
+        session_mgmt(management_info, "publish", sid)
+    except Exception as e:
+        logging.critical(e)
+        logging.critical("Exception detected. Discarding all changes.")
+        session_mgmt(management_info, "discard", sid)
+    finally:
+        session_mgmt(management_info, "logout", sid)
 
 
 if __name__ == '__main__':

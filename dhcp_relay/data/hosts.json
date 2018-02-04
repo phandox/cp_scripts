@@ -1,0 +1,72 @@
+{
+  "vlan70": {
+    "master_int": {
+      "name": "vlan70_master_eth2.70_192.168.7.2",
+      "ip-address": "192.168.7.2",
+      "comments": "For DHCP Relay NAT rules"
+    },
+    "slave_int": {
+      "name": "vlan70_slave_eth2.70_192.168.7.3",
+      "ip-address": "192.168.7.3",
+      "comments": "For DHCP Relay NAT rules"
+    },
+    "cluster_int": {
+      "name": "vlan70_cluster_eth2.70_192.168.7.1",
+      "ip-address": "192.168.7.1",
+      "comments": "For DHCP Relay NAT rules"
+    }
+  },
+  "vlan80": {
+    "master_int": {
+      "name": "vlan80_master_eth2.80_192.168.8.2",
+      "ip-address": "192.168.8.2",
+      "comments": "For DHCP Relay NAT rules"
+    },
+    "slave_int": {
+      "name": "vlan80_slave_eth2.80_192.168.8.3",
+      "ip-address": "192.168.8.3",
+      "comments": "For DHCP Relay NAT rules"
+    },
+    "cluster_int": {
+      "name": "vlan80_cluster_eth2.80_192.168.8.1",
+      "ip-address": "192.168.8.1",
+      "comments": "For DHCP Relay NAT rules"
+    }
+
+  },
+  "vlan90": {
+    "master_int": {
+      "name": "vlan90_master_eth2.90_192.168.9.2",
+      "ip-address": "192.168.9.2",
+      "comments": "For DHCP Relay NAT rules"
+    },
+    "slave_int": {
+      "name": "vlan90_slave_eth2.90_192.168.9.3",
+      "ip-address": "192.168.9.3",
+      "comments": "For DHCP Relay NAT rules"
+    },
+    "cluster_int": {
+      "name": "vlan90_cluster_eth2.90_192.168.9.1",
+      "ip-address": "192.168.9.1",
+      "comments": "For DHCP Relay NAT rules"
+    }
+
+  },
+  "vlan100": {
+    "master_int": {
+      "name": "vlan100_master_eth2.100_192.168.10.2",
+      "ip-address": "192.168.10.2",
+      "comments": "For DHCP Relay NAT rules"
+    },
+    "slave_int": {
+      "name": "vlan100_slave_eth2.100_192.168.10.3",
+      "ip-address": "192.168.10.3",
+      "comments": "For DHCP Relay NAT rules"
+    },
+    "cluster_int": {
+      "name": "vlan100_cluster_eth2.100_192.168.10.1",
+      "ip-address": "192.168.10.1",
+      "comments": "For DHCP Relay NAT rules"
+    }
+  }
+}

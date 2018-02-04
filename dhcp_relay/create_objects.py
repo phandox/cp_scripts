@@ -4,6 +4,7 @@ import json
 import warnings
 import logging
 
+
 # Copied from example of Check Point R80.10 Management API:
 # https://sc1.checkpoint.com/documents/latest/APIs/index.html#ws~v1.1%20
 def api_call(ip_addr: str, port: int, command: str, json_payload: dict, sid=None):
@@ -21,12 +22,32 @@ def api_call(ip_addr: str, port: int, command: str, json_payload: dict, sid=None
         request_headers = {'Content-Type': 'application/json'}
     else:
         request_headers = {'Content-Type': 'application/json', 'X-chkp-sid': sid}
-    with warnings.catch_warnings(): # Disable warnings about unverified HTTPS request
+    with warnings.catch_warnings():  # Disable warnings about unverified HTTPS request
         warnings.simplefilter("ignore")
         r = requests.post(url, data=json.dumps(json_payload), headers=request_headers, verify=False)
     r.raise_for_status()
     return r.json()
 
+
+def get_sessions(connection_info: dict, sid: str):
+    # TODO make sure you can get more than 500 session ( use generator? )
+    if sid is None or sid == "":
+        raise TypeError("Sid not provided")
+    response = api_call(connection_info["ip"], connection_info["port"], 'show-sessions', {}, sid)
+    return [s["uid"] for s in response["objects"]]  # get sessions uids from top hierarchy
+
+
+def clean_empty_disconnected_sessions(connection_info: dict, sid: str):
+    if sid is None or sid == "":
+        raise TypeError("Sid not provided")
+    uids = get_sessions(connection_info, sid)
+    counter = 0
+    for u in uids:
+        r = api_call(connection_info["ip"], connection_info["port"], 'show-session', {"uid": u}, sid)
+        if r["in-work"] is False and r["locks"] == 0 and r["changes"] == 0:
+            api_call(connection_info["ip"], connection_info["port"], 'discard', {"uid": u}, sid)
+            counter += 1
+    logging.info(f"Cleaned {counter} sessions")
 
 
 def session_mgmt(connection_info: dict, action: str, sid=None):
@@ -53,6 +74,7 @@ def session_mgmt(connection_info: dict, action: str, sid=None):
     else:
         raise TypeError("Action is not defined")
 
+
 def add_dhcp_relay_interface_objects(connection_info: dict, sid: str, host_file: str, group_file: str, vlan: str):
     with open(host_file, mode='r', encoding='utf-8') as hf:
         hosts = json.load(hf)
@@ -65,7 +87,6 @@ def add_dhcp_relay_interface_objects(connection_info: dict, sid: str, host_file:
     response = api_call(connection_info["ip"], connection_info["port"], 'add-group', groups[vlan], sid)
 
 
-
 @click.command()
 @click.option("--user", required=True, help="Username on management server")
 @click.option("--log", default="warning", help="Sets the log level")
@@ -73,11 +94,14 @@ def add_dhcp_relay_interface_objects(connection_info: dict, sid: str, host_file:
 @click.argument("ip_address")
 @click.argument("port", default=443, required=False)
 def main(user, log, password, ip_address, port):
+    # Sets up logging level
     numeric_level = getattr(logging, log.upper())
     if not isinstance(numeric_level, int):
         raise ValueError(f"Invalid log level: {log}")
     logging.basicConfig(level=numeric_level)
 
+    # Saves information for login into management server
+    # TODO password should be stored in hash
     management_info = {"username": user, "password": password, "ip": ip_address, "port": port}
     sid = session_mgmt(management_info, "login")
 
@@ -88,7 +112,10 @@ def main(user, log, password, ip_address, port):
         logging.critical(e)
         logging.critical("Exception detected. Discarding all changes.")
         session_mgmt(management_info, "discard", sid)
+        clean_empty_disconnected_sessions(management_info, sid)
     finally:
+        # Log out after finishing work
+        clean_empty_disconnected_sessions(management_info, sid)
         session_mgmt(management_info, "logout", sid)
 
 

@@ -52,7 +52,12 @@ def clean_empty_disconnected_sessions(connection_info: dict, sid: str):
 
 def session_mgmt(connection_info: dict, action: str, sid=None):
     if action == "login":
-        payload = {'user': connection_info["username"], 'password': connection_info["password"]}
+        payload = {
+            'user': connection_info["username"], 
+            'password': connection_info["password"], 
+            "session-name": connection_info["session-name"], 
+            "session-description": connection_info["session-description"]
+        }
         response = api_call(connection_info["ip"], connection_info["port"], 'login', payload)
         logging.info(f"Logged in as user {connection_info['username']}")
         return response["sid"]
@@ -90,10 +95,12 @@ def add_dhcp_relay_interface_objects(connection_info: dict, sid: str, host_file:
 @click.command()
 @click.option("--user", required=True, help="Username on management server")
 @click.option("--log", default="warning", help="Sets the log level")
+@click.option("--session-name", default="", help="Names the API session")
+@click.option("--session-description", default="", help="Description of API session")
 @click.password_option()
 @click.argument("ip_address")
 @click.argument("port", default=443, required=False)
-def main(user, log, password, ip_address, port):
+def main(user, log, session_name, session_description, password, ip_address, port):
     # Sets up logging level
     numeric_level = getattr(logging, log.upper())
     if not isinstance(numeric_level, int):
@@ -102,13 +109,23 @@ def main(user, log, password, ip_address, port):
 
     # Saves information for login into management server
     # TODO password should be stored in hash
-    management_info = {"username": user, "password": password, "ip": ip_address, "port": port}
+    management_info = {
+        "username": user, 
+        "password": password, 
+        "ip": ip_address, 
+        "port": port,
+        "session-name": session_name,
+        "session-description": session_description
+    }
     sid = session_mgmt(management_info, "login")
+    vlans_to_add = ["vlan80", "vlan90", "vlan100"]
 
     try:
-        add_dhcp_relay_interface_objects(management_info, sid, "data/hosts.json", "data/groups.json", "vlan70")
+        for vlan in vlans_to_add:
+            add_dhcp_relay_interface_objects(management_info, sid, "data/hosts.json", "data/groups.json", vlan)
         session_mgmt(management_info, "publish", sid)
     except Exception as e:
+        # TODO React on duplicate objects as skipping them
         logging.critical(e)
         logging.critical("Exception detected. Discarding all changes.")
         session_mgmt(management_info, "discard", sid)

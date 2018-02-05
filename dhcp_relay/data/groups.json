@@ -14,5 +14,9 @@
   "vlan100": {
     "name": "vlan100_physical_interfaces",
     "members": ["vlan100_master_eth2.100_192.168.10.2", "vlan100_slave_eth2.100_192.168.10.3"]
+  },
+  "vlan10": {
+    "name": "vlan10_physical_interfaces",
+    "members": ["vlan10_master_eth2.10_172.16.1.250", "vlan10_slave_eth2.10_172.16.1.251"]
   }
 }

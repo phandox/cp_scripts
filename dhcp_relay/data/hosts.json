@@ -68,5 +68,22 @@
       "ip-address": "192.168.10.1",
       "comments": "For DHCP Relay NAT rules"
     }
+  },
+  "vlan10": {
+    "master_int": {
+      "name": "vlan10_master_eth2.10_172.16.1.250",
+      "ip-address": "172.16.1.250",
+      "comments": "For DHCP Relay NAT rules"
+    },
+    "slave_int": {
+      "name": "vlan10_slave_eth2.10_172.16.1.251",
+      "ip-address": "172.16.1.251",
+      "comments": "For DHCP Relay NAT rules"
+    },
+    "cluster_int": {
+      "name": "vlan100_cluster_eth2.100_172.16.1.254",
+      "ip-address": "172.16.1.254",
+      "comments": "For DHCP Relay NAT rules"
+    }
   }
 }
